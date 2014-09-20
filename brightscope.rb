@@ -18,7 +18,8 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
 
   def initialize(session)
     @session = session
-
+    @content = []
+    @content_401k = []
     # Capybara::Session.new(:selenium)
     # @name = name
   end
@@ -32,17 +33,16 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
   end  #visit the website
 
   def locate_search_bar
-    @search_bar = @session.find_by_id("company-search")
-    @search_bar = @session.find_by_id("general-search") if @session.find_by_id("company-search").nil?
+    @search_bar = @session.find_by_id("company-search").nil? ? @session.find_by_id("general-search") : @session.find_by_id("company-search")
   end #identify search bar
 
-  def input_and_select
+  #TODO ISSUE WITH SELECTING DROPDOWN
+  def input_and_select 
     @search_bar.set(@name)
-    entry = @session.first(".sitewide-searchbar-dropdown")
-    entry.click
+    puts @session.first(".sitewide-searchbar-dropdown").nil?
   end #select the first from the dropdown.
 
-  def set_identifiers #basic_form_page
+  def set_identifiers #basic_form_page 
     web_name = @session.all(".cname")[0].text
     
     industry = @session.all('.selected-details tbody tr:nth-child(2) td')[1].text
@@ -56,6 +56,7 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
     @content.push(web_name, industry, address_1, state, zip_code) 
   end
 
+  #TODO issues with selecting totals!!!
   def set_401k_identifiers #form 5500 info
     year = @session.find(:xpath, '//select[@id="select-form-5500-year"]//option[@selected="selected"]').text
     plan_year = @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Plan Year")]/following-sibling::td[1]').text
@@ -85,7 +86,7 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
 
   def sanitize_address(address)
     regex = /\w{2}\s\d{5}(?:[-\s]\d{4})?$/ #looks for state and zipcode
-    address_line = address.split(regex)[0].delte(",").strip #separates address line from state and zipcode
+    address_line = address.split(regex)[0].delete(",").strip #separates address line from state and zipcode
     keys = address.slice(regex).split(" ") #state and zipcode
     keys.unshift(address_line)
     return keys
@@ -98,7 +99,7 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
 
   def clear_content
     @content.clear
-    @content_401k.clear
+    @content_401k.clear 
   end
 
   private
