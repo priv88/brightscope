@@ -13,22 +13,9 @@ require_relative 'brightscope.rb'
 
 url = CSV.read('BrightscopeTest.csv')
 
-# url.each do |link|
-#   main_link = Brightscope.new(link[0])
-#   binding.pry
-#   main_link.sanitize_name
-#   main_link.start_cache
-#   main_link.locate_search_bar
-#   binding.pry
-#   main_link.input_and_select
-#   # main_link.
-# end
-
-
 def sanitize_name(name)
   regex = /GmbH|S\.p\.A$|S\.p\.A\.$|Ltd|Inc\.$|Inc$|Limited$|Co\.$|Corp$|Corp\.$|LLC$|L\.L\.C\.$|L\.L\.C$|\,|SA$|S\.A\.$|A\/S$|LP$$/
   mod_name = name.gsub(regex,"")
-  # binding.pry
   mod_name.strip
 end
 
@@ -48,7 +35,6 @@ worksheet.write_row(0,0,header_row)
 index_url = 0
 index = 1
 row = []  
-  # binding.pry
 
 url.each do |url|
   begin
@@ -61,7 +47,6 @@ url.each do |url|
   main_window.locate_search_bar
 
   main_window.input_and_select
-  # main_window.select_dropdown
   unless main_window.skip
     main_window.set_identifiers
     #Form 5500
