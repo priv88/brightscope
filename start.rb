@@ -11,10 +11,10 @@ require "writeexcel"
 require "csv"
 require_relative 'brightscope.rb'
 
-url = CSV.read('BrightscopeTestv2.csv')
+url = CSV.read('BrightscopeTestv4.csv')
 
 def sanitize_name(name)
-  regex = /GmbH$|S\.p\.A$|S\.p\.A\.$|Ltd$|Inc\.$|Inc$|Limited$|Co\.$|Corp$|Corp\.$|LLC$|L\.L\.C\.$|L\.L\.C$|\,|SA$|S\.A\.$|A\/S$|LP$|L\.P\.|L\.P|/
+  regex = /GmbH$|S\.p\.A$|S\.p\.A\.$|Ltd$|Inc\.$|Incorporated|Inc$|Limited$|Co\.$|Corp$|Corp\.$|LLC$|L\.L\.C\.$|L\.L\.C$|\,|SA$|S\.A\.$|A\/S$|LP$|L\.P\.|L\.P|/
   mod_name = name.gsub(regex,"")
   mod_name.strip
 end
@@ -27,7 +27,7 @@ end
 session = Capybara::Session.new(:selenium)
 main_window = Brightscope.new(session)
 main_window.start_cache
-wb_name = "Brightscope" + "#{Time.now.strftime("%m%d%Y")}" + ".xls"
+wb_name = "Brightscope v4 " + "#{Time.now.strftime("%m%d%Y")}" + ".xls"
 workbook = WriteExcel.new(wb_name)
 worksheet = workbook.add_worksheet
 header_row = ["File Name", "Web Name", "Industry", "Address Line 1", "Address Line 2", "City", "State", "Zip Code", "Year", "Plan Year", "Active Participants", "Total Partipants", "LY Participants", "URL"]
@@ -41,8 +41,8 @@ url.each do |url|
   main_window.clear_all_content
   file_name = url[index_url]
   puts file_name
-  main_window.name = sanitize_name(file_name)
-  # main_window.name = file_name
+  # main_window.name = sanitize_name(file_name)
+  main_window.name = file_name
   puts main_window.name
 
   main_window.locate_search_bar
@@ -63,6 +63,7 @@ url.each do |url|
       sleep rand(4..8)
     end
   else
+    puts file_name + "Not found in Brightscope"
     worksheet.write_row(index,0,[file_name,"Not found in Brightscope"])
     index += 1
     row.clear  
@@ -72,7 +73,7 @@ url.each do |url|
   index += 1
   sleep rand(3..12)
   rescue
-    next
+    retry
   end
 end
 
