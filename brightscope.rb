@@ -21,60 +21,63 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
     @content = []
     @content_401k = []
     @skip = false
+    #TODO add in option!
+    @use_sanitizer = true
     # Capybara::Session.new(:selenium)
     # @name = name
-  end
-
-  def switch_name(name)
-
   end
 
   def start_cache
     @session.visit BRIGHTSCOPE_URL
   end  #visit the website
+  
 
   def locate_search_bar
     @search_bar = @session.all(:xpath,'//input[@id="company-search"]').empty? ? @session.find_by_id("general-search") : @session.find_by_id("company-search")
   end #identify search bar
 
-  #TODO ISSUE WITH SELECTING DROPDOWN
   def input_and_select 
     @search_bar.set(@name)
+     #sleep to wait for dropdown to populate, not good way to verify
     @search_bar.native.send_keys :arrow_down
-    sleep 2
-    
+    sleep 5
+
     unless @session.all(:xpath, '//div[contains(@class, "sitewide-searchbar-dropdown")]').empty?
       @session.first(:xpath, '//div[contains(@class, "sitewide-searchbar-dropdown")]').click
     else
-      @skip = true
+      @skip = true #activate skip to get to the next name, if nothing populates 
     end
-
-    # @session.all(".sitewide-searchbar-dropdown div")[0].click
-    # @session.execute_script('$(".sitewide-searchbar-dropdown:nth-child(1)").trigger("mouseenter")')
-    # @search_bar.native.send_keys :arrow_down
-    # puts @session.first(".sitewide-searchbar-dropdown:nth-child(1)").nil?
-    # @session.find(".sitewide-searchbar-dropdown:nth-child(1)").click
   end #select the first from the dropdown.
 
 
-  def set_identifiers #basic_form_page 
+  def set_identifiers #basic_form_page - pick up basic information
     web_name = @session.all(".cname")[0].text
     puts web_name
     industry = @session.all('.selected-details tbody tr:nth-child(2) td')[1].text
     puts industry
-    address = @session.all('.selected-details tbody tr:nth-child(1) td')[1].text
-    puts address
+    address = @session.evaluate_script("document.getElementsByClassName('selected-detail-val')[0].innerHTML")
 
-    sanitized_address = sanitize_address(address)
-    puts sanitized_address    
-    address_1 = sanitized_address[0]
-    state = sanitized_address[1]
-    zip_code = sanitized_address[2]
+    # binding.pry
+    unless address.include? "None"
+      sanitized_address = sanitize_address(address)
+      address_1 = sanitized_address[0]
+      address_2 = sanitized_address[1]
+      city = sanitized_address[2]
+      state = sanitized_address[3]
+      zip_code = sanitized_address[4]
+      @content.push(web_name, industry, address_1, address_2, city, state, zip_code) 
+    else
+      @content.push(web_name, industry, "Address Not Available", "", "", "", "") 
+    end
+    # binding.pry
+    @content
+    # address = @session.all('.selected-details tbody tr:nth-child(1) td').empty? ? "N/A" : @session.all('.selected-details tbody tr:nth-child(1) td')[1].text
+    # puts address
 
-    @content.push(web_name, industry, address_1, state, zip_code) 
+
+    puts @content
   end
 
-  #TODO issues with selecting totals!!!
   def set_401k_identifiers #form 5500 info
     url = @session.current_url
     year = @session.find(:xpath, '//select[@id="select-form-5500-year"]//option[@selected="selected"]').text
@@ -85,7 +88,7 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
     # unless @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Total number of participants as of")]/following-sibling::td[1]').nil?
     # LY_participants = @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Total number of participants as of")]/following-sibling::td[1]').text
     participants_LY = @session.all(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Total number of participants as of")]/following-sibling::td[1]').empty? ? "N/A" : @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Total number of participants as of")]/following-sibling::td[1]').text
-    selected_year = @session.find(:xpath, '//select[@id="select-form-5500-year"]//option[@selected="selected"]').text
+    # selected_year = @session.find(:xpath, '//select[@id="select-form-5500-year"]//option[@selected="selected"]').text
     @content_401k.push(year, plan_year, active_participants, total_participants, participants_LY, url)
     # web_name = @session.find('#company-name-val').text
 
@@ -96,20 +99,38 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
     # address_1 = sanitized_address[0]
     # state = sanitized_address[1]
     # zip_code = sanitized_address[2]
-    
-    # naics_code = @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[./text()="Industry Code")]/following-sibling::td[1]').text
-    #xpath for active (eligible) participants, total and last year participants line
-    return @content_401k
+    return @content_401k    
   end
 
 
 
   def sanitize_address(address)
+
+    regex_new_line = /[^\n]+/
+    address_arr = address.scan(regex_new_line)
+    address_arr.each do |line| 
+      line.gsub!(/\s{2,}|\&nbsp\;|\<br\>|/,"")
+    end
+    address_arr.delete_if{|line| line==""}
+  
+    if address_arr.count > 2
+      address_line_1 = address_arr[0]
+      address_line_2 = address_arr[1]
+    else
+      address_line_1 = address_arr[0]
+      address_line_2 = ""
+    end
+
+    # binding.pry
     regex = /\w{2}\s\d{5}(?:[-\s]\d{4})?$/ #looks for state and zipcode
-    address_line = address.split(regex)[0].delete(",").strip #separates address line from state and zipcode
-    keys = address.slice(regex).split(" ") #state and zipcode
-    keys.unshift(address_line)
+    city = address_arr[-1].split(regex)[0].delete(",").strip #separates city from state and zipcode
+
+    # regex_city = /St|St\.|Street|Floor|Fl\.|Fl|Flr|Flr\.|Ave\.|Avenue|Pl\.|Pl|Place|Suite\s\d{1,4}|Ste\s\d{1,4}|Drive|Dr\.|Dr|Rd|Rd\.|Road|Way|Parkway|Pwky|Trafficway|Blvd\s|Blvd|Boulevard|/
+    # binding.pry
+    keys = address_arr[-1].slice(regex).split(" ") #state and zipcode
+    keys.unshift(address_line_1, address_line_2, city)
     return keys
+        # binding.pry
   end
 
   def redirect_to_form5500
@@ -132,27 +153,7 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
 
   def click_through_years
     session.find(:xpath, '//select[@id="select-form-5500-year"]').native.send_keys :arrow_down
-    session.find('body').click
-    # year = @session.find(:xpath, '//select[@id="select-form-5500-year"]//option[@selected="selected"]').text
-    # plan_year = @session.find(:xpath, '//table[@class="table-form-5500-section"]//td[contains(text(), "Plan Year")]/following-sibling::td[1]').text
-    
-
-    # puts plan_year.match(year)
-
-    # if plan_year.match(year).nil?
-      # sleep 2
-    # end
-
-    # session.find(:xpath, '')native.send_keys :arrow_down
+    session.find('body').click #need to click on page to ensure redirect works.
   end
 
-
-
-
-
-
-
 end
-
-# @search_bar.native.send_keys :return // :arrow_down
-
