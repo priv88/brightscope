@@ -31,6 +31,9 @@ BRIGHTSCOPE_URL = "http://www.brightscope.com"
     @session.visit BRIGHTSCOPE_URL
   end  #visit the website
   
+  def start_cache_screenshots(url)
+    @session.visit url
+  end
 
   def locate_search_bar
     @search_bar = @session.all(:xpath,'//input[@id="company-search"]').empty? ? @session.find_by_id("general-search") : @session.find_by_id("company-search")
